@@ -176,24 +176,24 @@ export function saveRaceResult(result: RaceResult): RaceResult {
 // Horses
 // ========================================
 export function getHorses(): Horse[] {
-    // 2024年有馬記念のデフォルト出走馬
+    // 2025年有馬記念のデフォルト出走馬
     const defaultHorses: Horse[] = [
-        { number: 1, name: 'シャフリヤール' },
-        { number: 2, name: 'プログノーシス' },
-        { number: 3, name: 'スターズオンアース' },
-        { number: 4, name: 'ジャスティンパレス' },
-        { number: 5, name: 'ドウデュース' },
-        { number: 6, name: 'ブローザホーン' },
-        { number: 7, name: 'ダノンベルーガ' },
-        { number: 8, name: 'べラジオオペラ' },
-        { number: 9, name: 'レガレイラ' },
-        { number: 10, name: 'アーバンシック' },
-        { number: 11, name: 'ローシャムパーク' },
-        { number: 12, name: 'ディープボンド' },
-        { number: 13, name: 'シュトルーヴェ' },
-        { number: 14, name: 'スタニングローズ' },
-        { number: 15, name: 'アルヴェルト' },
-        { number: 16, name: 'ハヤヤッコ' },
+        { number: 1, name: 'エキサイトバイオ', jockey: '荻野極' },
+        { number: 2, name: 'シンエンペラー', jockey: '坂井瑠星' },
+        { number: 3, name: 'ジャスティンパレス', jockey: '団野大成' },
+        { number: 4, name: 'ミュージアムマイル', jockey: 'C.デムーロ' },
+        { number: 5, name: 'レガレイラ', jockey: 'C.ルメール' },
+        { number: 6, name: 'メイショウタバル', jockey: '武豊' },
+        { number: 7, name: 'サンライズジパング', jockey: '鮫島克駿' },
+        { number: 8, name: 'シュヴァリエローズ', jockey: '北村友一' },
+        { number: 9, name: 'ダノンデサイル', jockey: '戸崎圭太' },
+        { number: 10, name: 'コスモキュランダ', jockey: '横山武史' },
+        { number: 11, name: 'ミステリーウェイ', jockey: '松本大輝' },
+        { number: 12, name: 'マイネルエンペラー', jockey: '丹内祐次' },
+        { number: 13, name: 'アドマイヤテラ', jockey: '川田将雅' },
+        { number: 14, name: 'アラタ', jockey: '大野拓弥' },
+        { number: 15, name: 'エルトンバローズ', jockey: '西村淳也' },
+        { number: 16, name: 'タスティエーラ', jockey: '松山弘平' },
     ]
     return readJsonFile<Horse[]>(HORSES_FILE, defaultHorses)
 }
