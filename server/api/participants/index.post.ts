@@ -10,7 +10,7 @@ export default defineEventHandler(async (event) => {
     const trapId = user.trapId
 
     // 既に参加済みかチェック
-    const existing = getParticipantByTrapId(trapId)
+    const existing = await getParticipantByTrapId(trapId)
     if (existing) {
         if (existing.status === 'paid') {
             throw createError({
@@ -53,7 +53,7 @@ export default defineEventHandler(async (event) => {
         })
 
         // 参加者を保存
-        const participant = addParticipant({
+        const participant = await addParticipant({
             id: participantId,
             trapId,
             billId: bill.billId,

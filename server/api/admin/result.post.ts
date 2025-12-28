@@ -36,7 +36,7 @@ export default defineEventHandler(async (event) => {
         createdAt: new Date().toISOString()
     }
 
-    saveRaceResult(result)
+    await saveRaceResult(result)
 
     return {
         success: true,

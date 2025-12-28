@@ -2,5 +2,5 @@
 import { getHorses } from '~~/server/utils/db'
 
 export default defineEventHandler(async (event) => {
-    return getHorses()
+    return await getHorses()
 })

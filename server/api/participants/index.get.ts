@@ -2,7 +2,7 @@
 import { getParticipants } from '~~/server/utils/db'
 
 export default defineEventHandler(async (event) => {
-    const participants = getParticipants()
+    const participants = await getParticipants()
     return {
         items: participants,
         total: participants.length,

@@ -1,17 +1,11 @@
-// シンプルなJSONファイルベースのデータストア
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs'
-import { join } from 'path'
+// MongoDB を使用したデータストア
+import { ensureConnection } from './mongodb'
+import { ParticipantModel, type IParticipant } from '../models/Participant'
+import { BetModel, type IBet, type IBetTicket } from '../models/Bet'
+import { RaceResultModel, type IRaceResult } from '../models/RaceResult'
+import { HorseModel, type IHorse } from '../models/Horse'
 
-// データディレクトリ
-const DATA_DIR = join(process.cwd(), 'data')
-
-// データファイルパス
-const PARTICIPANTS_FILE = join(DATA_DIR, 'participants.json')
-const BETS_FILE = join(DATA_DIR, 'bets.json')
-const RACE_RESULT_FILE = join(DATA_DIR, 'race_result.json')
-const HORSES_FILE = join(DATA_DIR, 'horses.json')
-
-// 型定義
+// 型定義（API互換性のため維持）
 export interface Participant {
     id: string
     trapId: string          // traP ID (ユーザー名)
@@ -73,145 +67,233 @@ export interface Payout {
     status: 'pending' | 'sent' | 'failed'
 }
 
-// 初期化
-function ensureDataDir() {
-    if (!existsSync(DATA_DIR)) {
-        mkdirSync(DATA_DIR, { recursive: true })
+// ========================================
+// ヘルパー: MongoDB ドキュメント → API型への変換
+// ========================================
+function toParticipant(doc: IParticipant): Participant {
+    return {
+        id: doc.id,
+        trapId: doc.trapId,
+        billId: doc.billId,
+        status: doc.status,
+        units: doc.units,
+        createdAt: doc.createdAt.toISOString(),
+        paidAt: doc.paidAt?.toISOString()
     }
 }
 
-function readJsonFile<T>(path: string, defaultValue: T): T {
-    ensureDataDir()
-    if (!existsSync(path)) {
-        writeFileSync(path, JSON.stringify(defaultValue, null, 2))
-        return defaultValue
-    }
-    try {
-        const content = readFileSync(path, 'utf-8')
-        return JSON.parse(content)
-    } catch {
-        return defaultValue
+function toBet(doc: IBet): Bet {
+    return {
+        participantId: doc.participantId,
+        tickets: doc.tickets.map(t => ({
+            type: t.type,
+            horses: t.horses,
+            units: t.units
+        })),
+        totalUnits: doc.totalUnits,
+        createdAt: doc.createdAt.toISOString(),
+        updatedAt: doc.updatedAt.toISOString()
     }
 }
 
-function writeJsonFile<T>(path: string, data: T): void {
-    ensureDataDir()
-    writeFileSync(path, JSON.stringify(data, null, 2))
+function toRaceResult(doc: IRaceResult): RaceResult {
+    return {
+        first: doc.first,
+        second: doc.second,
+        third: doc.third,
+        odds: {
+            trifecta: Object.fromEntries(doc.odds.trifecta || new Map()),
+            trio: Object.fromEntries(doc.odds.trio || new Map()),
+            exacta: Object.fromEntries(doc.odds.exacta || new Map()),
+            quinella: Object.fromEntries(doc.odds.quinella || new Map()),
+            win: Object.fromEntries(doc.odds.win || new Map()),
+            place: Object.fromEntries(doc.odds.place || new Map())
+        },
+        confirmed: doc.confirmed,
+        createdAt: doc.createdAt.toISOString()
+    }
+}
+
+function toHorse(doc: IHorse): Horse {
+    return {
+        number: doc.number,
+        name: doc.name,
+        jockey: doc.jockey
+    }
 }
 
 // ========================================
 // Participants
 // ========================================
-export function getParticipants(): Participant[] {
-    return readJsonFile<Participant[]>(PARTICIPANTS_FILE, [])
+export async function getParticipants(): Promise<Participant[]> {
+    await ensureConnection()
+    const docs = await ParticipantModel.find().lean() as IParticipant[]
+    return docs.map(toParticipant)
 }
 
-export function getParticipant(id: string): Participant | undefined {
-    return getParticipants().find(p => p.id === id)
+export async function getParticipant(id: string): Promise<Participant | undefined> {
+    await ensureConnection()
+    const doc = await ParticipantModel.findOne({ id }).lean() as IParticipant | null
+    return doc ? toParticipant(doc) : undefined
 }
 
-export function getParticipantByTrapId(trapId: string): Participant | undefined {
-    return getParticipants().find(p => p.trapId === trapId)
+export async function getParticipantByTrapId(trapId: string): Promise<Participant | undefined> {
+    await ensureConnection()
+    const doc = await ParticipantModel.findOne({ trapId }).lean() as IParticipant | null
+    return doc ? toParticipant(doc) : undefined
 }
 
-export function getParticipantByBillId(billId: string): Participant | undefined {
-    return getParticipants().find(p => p.billId === billId)
+export async function getParticipantByBillId(billId: string): Promise<Participant | undefined> {
+    await ensureConnection()
+    const doc = await ParticipantModel.findOne({ billId }).lean() as IParticipant | null
+    return doc ? toParticipant(doc) : undefined
 }
 
-export function addParticipant(participant: Participant): Participant {
-    const participants = getParticipants()
-    participants.push(participant)
-    writeJsonFile(PARTICIPANTS_FILE, participants)
-    return participant
+export async function addParticipant(participant: Participant): Promise<Participant> {
+    await ensureConnection()
+    const doc = await ParticipantModel.create({
+        id: participant.id,
+        trapId: participant.trapId,
+        billId: participant.billId,
+        status: participant.status,
+        units: participant.units,
+        createdAt: new Date(participant.createdAt),
+        paidAt: participant.paidAt ? new Date(participant.paidAt) : undefined
+    })
+    return toParticipant(doc)
 }
 
-export function updateParticipant(id: string, updates: Partial<Participant>): Participant | undefined {
-    const participants = getParticipants()
-    const index = participants.findIndex(p => p.id === id)
-    if (index === -1) return undefined
+export async function updateParticipant(id: string, updates: Partial<Participant>): Promise<Participant | undefined> {
+    await ensureConnection()
+    const updateData: Record<string, unknown> = { ...updates }
+    if (updates.createdAt) updateData.createdAt = new Date(updates.createdAt)
+    if (updates.paidAt) updateData.paidAt = new Date(updates.paidAt)
 
-    participants[index] = { ...participants[index], ...updates }
-    writeJsonFile(PARTICIPANTS_FILE, participants)
-    return participants[index]
+    const doc = await ParticipantModel.findOneAndUpdate(
+        { id },
+        { $set: updateData },
+        { new: true }
+    ).lean() as IParticipant | null
+    return doc ? toParticipant(doc) : undefined
 }
 
 // ========================================
 // Bets
 // ========================================
-export function getBets(): Bet[] {
-    return readJsonFile<Bet[]>(BETS_FILE, [])
+export async function getBets(): Promise<Bet[]> {
+    await ensureConnection()
+    const docs = await BetModel.find().lean() as IBet[]
+    return docs.map(toBet)
 }
 
-export function getBet(participantId: string): Bet | undefined {
-    return getBets().find(b => b.participantId === participantId)
+export async function getBet(participantId: string): Promise<Bet | undefined> {
+    await ensureConnection()
+    const doc = await BetModel.findOne({ participantId }).lean() as IBet | null
+    return doc ? toBet(doc) : undefined
 }
 
-export function saveBet(bet: Bet): Bet {
-    const bets = getBets()
-    const index = bets.findIndex(b => b.participantId === bet.participantId)
-
-    if (index === -1) {
-        bets.push(bet)
-    } else {
-        bets[index] = bet
-    }
-
-    writeJsonFile(BETS_FILE, bets)
-    return bet
+export async function saveBet(bet: Bet): Promise<Bet> {
+    await ensureConnection()
+    const doc = await BetModel.findOneAndUpdate(
+        { participantId: bet.participantId },
+        {
+            $set: {
+                tickets: bet.tickets,
+                totalUnits: bet.totalUnits,
+                updatedAt: new Date()
+            },
+            $setOnInsert: {
+                participantId: bet.participantId,
+                createdAt: new Date()
+            }
+        },
+        { upsert: true, new: true }
+    ).lean() as IBet
+    return toBet(doc)
 }
 
 // ========================================
 // Race Result
 // ========================================
-export function getRaceResult(): RaceResult | null {
-    return readJsonFile<RaceResult | null>(RACE_RESULT_FILE, null)
+export async function getRaceResult(): Promise<RaceResult | null> {
+    await ensureConnection()
+    const doc = await RaceResultModel.findOne().lean() as IRaceResult | null
+    return doc ? toRaceResult(doc) : null
 }
 
-export function saveRaceResult(result: RaceResult): RaceResult {
-    writeJsonFile(RACE_RESULT_FILE, result)
-    return result
+export async function saveRaceResult(result: RaceResult): Promise<RaceResult> {
+    await ensureConnection()
+    // 既存の結果を削除して新しく作成（1つしか存在しない想定）
+    await RaceResultModel.deleteMany({})
+    const doc = await RaceResultModel.create({
+        first: result.first,
+        second: result.second,
+        third: result.third,
+        odds: {
+            trifecta: new Map(Object.entries(result.odds.trifecta)),
+            trio: new Map(Object.entries(result.odds.trio)),
+            exacta: new Map(Object.entries(result.odds.exacta)),
+            quinella: new Map(Object.entries(result.odds.quinella)),
+            win: new Map(Object.entries(result.odds.win)),
+            place: new Map(Object.entries(result.odds.place))
+        },
+        confirmed: result.confirmed,
+        createdAt: new Date()
+    })
+    return toRaceResult(doc)
 }
 
 // ========================================
 // Horses
 // ========================================
-export function getHorses(): Horse[] {
-    // 2025年有馬記念のデフォルト出走馬
-    const defaultHorses: Horse[] = [
-        { number: 1, name: 'エキサイトバイオ', jockey: '荻野極' },
-        { number: 2, name: 'シンエンペラー', jockey: '坂井瑠星' },
-        { number: 3, name: 'ジャスティンパレス', jockey: '団野大成' },
-        { number: 4, name: 'ミュージアムマイル', jockey: 'C.デムーロ' },
-        { number: 5, name: 'レガレイラ', jockey: 'C.ルメール' },
-        { number: 6, name: 'メイショウタバル', jockey: '武豊' },
-        { number: 7, name: 'サンライズジパング', jockey: '鮫島克駿' },
-        { number: 8, name: 'シュヴァリエローズ', jockey: '北村友一' },
-        { number: 9, name: 'ダノンデサイル', jockey: '戸崎圭太' },
-        { number: 10, name: 'コスモキュランダ', jockey: '横山武史' },
-        { number: 11, name: 'ミステリーウェイ', jockey: '松本大輝' },
-        { number: 12, name: 'マイネルエンペラー', jockey: '丹内祐次' },
-        { number: 13, name: 'アドマイヤテラ', jockey: '川田将雅' },
-        { number: 14, name: 'アラタ', jockey: '大野拓弥' },
-        { number: 15, name: 'エルトンバローズ', jockey: '西村淳也' },
-        { number: 16, name: 'タスティエーラ', jockey: '松山弘平' },
-    ]
-    return readJsonFile<Horse[]>(HORSES_FILE, defaultHorses)
+const defaultHorses: Horse[] = [
+    { number: 1, name: 'エキサイトバイオ', jockey: '荻野極' },
+    { number: 2, name: 'シンエンペラー', jockey: '坂井瑠星' },
+    { number: 3, name: 'ジャスティンパレス', jockey: '団野大成' },
+    { number: 4, name: 'ミュージアムマイル', jockey: 'C.デムーロ' },
+    { number: 5, name: 'レガレイラ', jockey: 'C.ルメール' },
+    { number: 6, name: 'メイショウタバル', jockey: '武豊' },
+    { number: 7, name: 'サンライズジパング', jockey: '鮫島克駿' },
+    { number: 8, name: 'シュヴァリエローズ', jockey: '北村友一' },
+    { number: 9, name: 'ダノンデサイル', jockey: '戸崎圭太' },
+    { number: 10, name: 'コスモキュランダ', jockey: '横山武史' },
+    { number: 11, name: 'ミステリーウェイ', jockey: '松本大輝' },
+    { number: 12, name: 'マイネルエンペラー', jockey: '丹内祐次' },
+    { number: 13, name: 'アドマイヤテラ', jockey: '川田将雅' },
+    { number: 14, name: 'アラタ', jockey: '大野拓弥' },
+    { number: 15, name: 'エルトンバローズ', jockey: '西村淳也' },
+    { number: 16, name: 'タスティエーラ', jockey: '松山弘平' },
+]
+
+export async function getHorses(): Promise<Horse[]> {
+    await ensureConnection()
+    const docs = await HorseModel.find().sort({ number: 1 }).lean() as IHorse[]
+
+    // データがなければデフォルトを入れる
+    if (docs.length === 0) {
+        await HorseModel.insertMany(defaultHorses)
+        return defaultHorses
+    }
+
+    return docs.map(toHorse)
 }
 
-export function saveHorses(horses: Horse[]): Horse[] {
-    writeJsonFile(HORSES_FILE, horses)
+export async function saveHorses(horses: Horse[]): Promise<Horse[]> {
+    await ensureConnection()
+    await HorseModel.deleteMany({})
+    await HorseModel.insertMany(horses)
     return horses
 }
 
 // ========================================
 // Payout Calculation
 // ========================================
-export function calculatePayouts(): Payout[] {
-    const result = getRaceResult()
+export async function calculatePayouts(): Promise<Payout[]> {
+    const result = await getRaceResult()
     if (!result || !result.confirmed) return []
 
-    const participants = getParticipants().filter(p => p.status === 'paid')
-    const bets = getBets()
+    const participants = (await getParticipants()).filter(p => p.status === 'paid')
+    const bets = await getBets()
     const payouts: Payout[] = []
 
     for (const participant of participants) {
@@ -330,10 +412,10 @@ export function calculatePayouts(): Payout[] {
 // ========================================
 // 統計
 // ========================================
-export function getStats() {
-    const participants = getParticipants()
+export async function getStats() {
+    const participants = await getParticipants()
     const paidParticipants = participants.filter(p => p.status === 'paid')
-    const bets = getBets()
+    const bets = await getBets()
 
     const totalPool = paidParticipants.length * 100 * 100 // 人数 × 100口 × 100コピア
 

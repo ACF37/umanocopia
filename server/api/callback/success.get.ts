@@ -11,7 +11,7 @@ export default defineEventHandler(async (event) => {
         return sendRedirect(event, '/?error=missing_participant_id')
     }
 
-    const participant = getParticipant(participantId)
+    const participant = await getParticipant(participantId)
     if (!participant) {
         return sendRedirect(event, '/?error=participant_not_found')
     }
@@ -36,7 +36,7 @@ export default defineEventHandler(async (event) => {
     }
 
     // ステータスを更新
-    updateParticipant(participantId, {
+    await updateParticipant(participantId, {
         status: 'paid',
         paidAt: new Date().toISOString()
     })

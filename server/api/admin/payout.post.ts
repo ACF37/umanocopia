@@ -8,7 +8,7 @@ export default defineEventHandler(async (event) => {
     const { execute } = body // trueなら実際に送金を実行
 
     // レース結果を確認
-    const result = getRaceResult()
+    const result = await getRaceResult()
     if (!result || !result.confirmed) {
         throw createError({
             statusCode: 400,
@@ -17,7 +17,7 @@ export default defineEventHandler(async (event) => {
     }
 
     // 配当を計算
-    const payouts = calculatePayouts()
+    const payouts = await calculatePayouts()
 
     if (!execute) {
         // プレビューモード：計算結果のみ返す

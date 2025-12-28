@@ -9,6 +9,7 @@ export default defineNuxtConfig({
   // 環境変数
   runtimeConfig: {
     // サーバーサイドのみ
+    mongodbUri: process.env.MONGODB_URI || '',
     plutusApiUrl: process.env.PLUTUS_API_URL || 'https://plutus.trap.show/api/v1',
     plutusApiToken: process.env.PLUTUS_API_TOKEN || '',
 

@@ -2,12 +2,12 @@
 import { getStats, getRaceResult, calculatePayouts } from '~~/server/utils/db'
 
 export default defineEventHandler(async (event) => {
-    const stats = getStats()
-    const result = getRaceResult()
+    const stats = await getStats()
+    const result = await getRaceResult()
 
     let payoutsPreview = null
     if (result && result.confirmed) {
-        const payouts = calculatePayouts()
+        const payouts = await calculatePayouts()
         const totalPayout = payouts.reduce((sum, p) => sum + p.amount, 0)
         const winners = payouts.filter(p => p.amount > 0)
 

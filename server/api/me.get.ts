@@ -14,8 +14,8 @@ export default defineEventHandler(async (event) => {
         }
     }
 
-    const participant = getParticipantByTrapId(user.trapId)
-    const bet = participant ? getBet(participant.id) : null
+    const participant = await getParticipantByTrapId(user.trapId)
+    const bet = participant ? await getBet(participant.id) : null
 
     return {
         authenticated: true,

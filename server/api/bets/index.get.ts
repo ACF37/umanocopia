@@ -7,17 +7,17 @@ export default defineEventHandler(async (event) => {
 
     if (trapId) {
         // 特定ユーザーの賭け情報を取得
-        const participant = getParticipantByTrapId(trapId)
+        const participant = await getParticipantByTrapId(trapId)
         if (!participant) {
             throw createError({
                 statusCode: 404,
                 message: '参加者が見つかりません'
             })
         }
-        const bet = getBet(participant.id)
+        const bet = await getBet(participant.id)
         return bet || null
     }
 
     // 全員の賭け情報を取得
-    return getBets()
+    return await getBets()
 })

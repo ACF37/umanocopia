@@ -2,7 +2,7 @@
 import { getRaceResult, calculatePayouts, getHorses, getParticipants } from '~~/server/utils/db'
 
 export default defineEventHandler(async (event) => {
-    const result = getRaceResult()
+    const result = await getRaceResult()
 
     if (!result || !result.confirmed) {
         return {
@@ -11,9 +11,9 @@ export default defineEventHandler(async (event) => {
         }
     }
 
-    const horses = getHorses()
-    const payouts = calculatePayouts()
-    const participants = getParticipants().filter(p => p.status === 'paid')
+    const horses = await getHorses()
+    const payouts = await calculatePayouts()
+    const participants = (await getParticipants()).filter(p => p.status === 'paid')
 
     // 馬名を取得するヘルパー
     const getHorseName = (num: number) => {

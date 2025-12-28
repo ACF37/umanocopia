@@ -18,7 +18,7 @@ export default defineEventHandler(async (event) => {
     }
 
     // 参加者を確認
-    const participant = getParticipantByTrapId(trapId)
+    const participant = await getParticipantByTrapId(trapId)
     if (!participant) {
         throw createError({
             statusCode: 404,
@@ -79,7 +79,7 @@ export default defineEventHandler(async (event) => {
 
     // 賭け情報を保存
     const now = new Date().toISOString()
-    const bet = saveBet({
+    const bet = await saveBet({
         participantId: participant.id,
         tickets,
         totalUnits,
