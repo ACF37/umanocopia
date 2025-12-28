@@ -2,7 +2,7 @@
   <div class="container">
     <!-- ヒーローセクション -->
     <section class="hero">
-      <h1 class="hero-title">🏇 有馬記念 2024 🏆</h1>
+      <h1 class="hero-title">🏇 有馬記念 2025 🏆</h1>
       <p class="hero-subtitle">
         部内通貨「コピア」を使った観戦サービス<br>
         10,000コピアで100口を手に入れて、夢の配当を目指せ！

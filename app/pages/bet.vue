@@ -31,83 +31,225 @@
           {{ successMessage }}
         </div>
 
-        <!-- 馬券タイプ選択 -->
-        <div class="section">
-          <h3 class="section-title">馬券の種類を選択</h3>
-          <div class="ticket-types">
-            <button 
-              v-for="type in ticketTypes" 
-              :key="type.id"
-              :class="['ticket-type-btn', { active: selectedType === type.id }]"
-              @click="selectedType = type.id"
-            >
-              <span class="ticket-type-icon">{{ type.icon }}</span>
-              <span class="ticket-type-name">{{ type.name }}</span>
-              <span class="ticket-type-desc">{{ type.description }}</span>
-            </button>
-          </div>
-        </div>
-
-        <!-- 馬選択 -->
-        <div class="section" v-if="selectedType">
-          <h3 class="section-title">
-            馬番を選択
-            <span class="selection-hint">
-              ({{ requiredHorses }}頭{{ selectedType === 'trifecta' || selectedType === 'exacta' ? '・順番通り' : '' }})
-            </span>
-          </h3>
-          <div class="horse-grid">
-            <button 
-              v-for="horse in horses" 
-              :key="horse.number"
-              :class="['horse-btn', { 
-                selected: selectedHorses.includes(horse.number),
-                'first': selectedHorses[0] === horse.number,
-                'second': selectedHorses[1] === horse.number,
-                'third': selectedHorses[2] === horse.number
-              }]"
-              @click="toggleHorse(horse.number)"
-              :disabled="isHorseDisabled(horse.number)"
-            >
-              <span class="horse-number">{{ horse.number }}</span>
-              <span class="horse-order" v-if="getHorseOrder(horse.number)">{{ getHorseOrder(horse.number) }}</span>
-            </button>
-          </div>
-          <div class="selected-display" v-if="selectedHorses.length > 0">
-            <span class="selected-label">選択中:</span>
-            <span class="selected-horses">
-              {{ selectedHorses.map(n => horses?.find(h => h.number === n)?.name || n).join(' → ') }}
-            </span>
-          </div>
-        </div>
-
-        <!-- 口数入力 -->
-        <div class="section" v-if="selectedHorses.length === requiredHorses">
-          <h3 class="section-title">口数を入力</h3>
-          <div class="units-input-group">
-            <button @click="units = Math.max(1, units - 10)" class="btn btn-secondary">-10</button>
-            <button @click="units = Math.max(1, units - 1)" class="btn btn-secondary">-1</button>
-            <input 
-              v-model.number="units" 
-              type="number" 
-              class="form-input units-input" 
-              min="1"
-              :max="remainingUnits"
-            >
-            <button @click="units = Math.min(remainingUnits, units + 1)" class="btn btn-secondary">+1</button>
-            <button @click="units = Math.min(remainingUnits, units + 10)" class="btn btn-secondary">+10</button>
-          </div>
-          <div class="units-info">
-            <span>{{ units }}口 × 100コピア = <strong>{{ (units * 100).toLocaleString() }}コピア</strong></span>
-          </div>
-        </div>
-
-        <!-- カートに追加 -->
-        <div class="section" v-if="selectedHorses.length === requiredHorses && units > 0">
-          <button @click="addToCart" class="btn btn-primary btn-block">
-            🛒 カートに追加
+        <!-- 購入モード切替タブ -->
+        <div class="mode-tabs">
+          <button 
+            :class="['mode-tab', { active: purchaseMode === 'normal' }]"
+            @click="purchaseMode = 'normal'"
+          >
+            📝 通常購入
+          </button>
+          <button 
+            :class="['mode-tab', { active: purchaseMode === 'formation' }]"
+            @click="purchaseMode = 'formation'"
+          >
+            🎲 フォーメーション
           </button>
         </div>
+
+        <!-- 通常購入モード -->
+        <template v-if="purchaseMode === 'normal'">
+          <!-- 馬券タイプ選択 -->
+          <div class="section">
+            <h3 class="section-title">馬券の種類を選択</h3>
+            <div class="ticket-types">
+              <button 
+                v-for="type in ticketTypes" 
+                :key="type.id"
+                :class="['ticket-type-btn', { active: selectedType === type.id }]"
+                @click="selectedType = type.id"
+              >
+                <span class="ticket-type-icon">{{ type.icon }}</span>
+                <span class="ticket-type-name">{{ type.name }}</span>
+                <span class="ticket-type-desc">{{ type.description }}</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- 馬選択 -->
+          <div class="section" v-if="selectedType">
+            <h3 class="section-title">
+              馬番を選択
+              <span class="selection-hint">
+                ({{ requiredHorses }}頭{{ selectedType === 'trifecta' || selectedType === 'exacta' ? '・順番通り' : '' }})
+              </span>
+            </h3>
+            <div class="horse-grid">
+              <button 
+                v-for="horse in horses" 
+                :key="horse.number"
+                :class="['horse-btn', { 
+                  selected: selectedHorses.includes(horse.number),
+                  'first': selectedHorses[0] === horse.number,
+                  'second': selectedHorses[1] === horse.number,
+                  'third': selectedHorses[2] === horse.number
+                }]"
+                @click="toggleHorse(horse.number)"
+                :disabled="isHorseDisabled(horse.number)"
+              >
+                <span class="horse-number">{{ horse.number }}</span>
+                <span class="horse-order" v-if="getHorseOrder(horse.number)">{{ getHorseOrder(horse.number) }}</span>
+              </button>
+            </div>
+            <div class="selected-display" v-if="selectedHorses.length > 0">
+              <span class="selected-label">選択中:</span>
+              <span class="selected-horses">
+                {{ selectedHorses.map(n => horses?.find(h => h.number === n)?.name || n).join(' → ') }}
+              </span>
+            </div>
+          </div>
+
+          <!-- 口数入力 -->
+          <div class="section" v-if="selectedHorses.length === requiredHorses">
+            <h3 class="section-title">口数を入力</h3>
+            <div class="units-input-group">
+              <button @click="units = Math.max(1, units - 10)" class="btn btn-secondary">-10</button>
+              <button @click="units = Math.max(1, units - 1)" class="btn btn-secondary">-1</button>
+              <input 
+                v-model.number="units" 
+                type="number" 
+                class="form-input units-input" 
+                min="1"
+                :max="remainingUnits"
+              >
+              <button @click="units = Math.min(remainingUnits, units + 1)" class="btn btn-secondary">+1</button>
+              <button @click="units = Math.min(remainingUnits, units + 10)" class="btn btn-secondary">+10</button>
+            </div>
+            <div class="units-info">
+              <span>{{ units }}口 × 100コピア = <strong>{{ (units * 100).toLocaleString() }}コピア</strong></span>
+            </div>
+          </div>
+
+          <!-- カートに追加 -->
+          <div class="section" v-if="selectedHorses.length === requiredHorses && units > 0">
+            <button @click="addToCart" class="btn btn-primary btn-block">
+              🛒 カートに追加
+            </button>
+          </div>
+        </template>
+
+        <!-- フォーメーションモード -->
+        <template v-else-if="purchaseMode === 'formation'">
+          <div class="section">
+            <h3 class="section-title">🥇🥈🥉 3連単フォーメーション</h3>
+            <p class="formation-desc">1着・2着・3着の候補をそれぞれ選択し、全組み合わせを一括購入できます。</p>
+          </div>
+
+          <!-- 1着候補選択 -->
+          <div class="section">
+            <h3 class="section-title formation-position first">1着候補</h3>
+            <div class="horse-grid">
+              <button 
+                v-for="horse in horses" 
+                :key="'first-' + horse.number"
+                :class="['horse-btn', { selected: formationFirst.includes(horse.number), first: formationFirst.includes(horse.number) }]"
+                @click="toggleFormationHorse('first', horse.number)"
+              >
+                <span class="horse-number">{{ horse.number }}</span>
+              </button>
+            </div>
+            <div class="selected-display" v-if="formationFirst.length > 0">
+              <span class="selected-label">1着候補:</span>
+              <span class="selected-horses">{{ formationFirst.join(', ') }}</span>
+            </div>
+          </div>
+
+          <!-- 2着候補選択 -->
+          <div class="section">
+            <h3 class="section-title formation-position second">2着候補</h3>
+            <div class="horse-grid">
+              <button 
+                v-for="horse in horses" 
+                :key="'second-' + horse.number"
+                :class="['horse-btn', { selected: formationSecond.includes(horse.number), second: formationSecond.includes(horse.number) }]"
+                @click="toggleFormationHorse('second', horse.number)"
+              >
+                <span class="horse-number">{{ horse.number }}</span>
+              </button>
+            </div>
+            <div class="selected-display" v-if="formationSecond.length > 0">
+              <span class="selected-label">2着候補:</span>
+              <span class="selected-horses">{{ formationSecond.join(', ') }}</span>
+            </div>
+          </div>
+
+          <!-- 3着候補選択 -->
+          <div class="section">
+            <h3 class="section-title formation-position third">3着候補</h3>
+            <div class="horse-grid">
+              <button 
+                v-for="horse in horses" 
+                :key="'third-' + horse.number"
+                :class="['horse-btn', { selected: formationThird.includes(horse.number), third: formationThird.includes(horse.number) }]"
+                @click="toggleFormationHorse('third', horse.number)"
+              >
+                <span class="horse-number">{{ horse.number }}</span>
+              </button>
+            </div>
+            <div class="selected-display" v-if="formationThird.length > 0">
+              <span class="selected-label">3着候補:</span>
+              <span class="selected-horses">{{ formationThird.join(', ') }}</span>
+            </div>
+          </div>
+
+          <!-- 展開プレビュー -->
+          <div class="section" v-if="expandedFormation.length > 0">
+            <h3 class="section-title">📊 展開結果 ({{ expandedFormation.length }}点)</h3>
+            
+            <div v-if="expandedFormation.length > remainingUnits" class="alert alert-warning">
+              ⚠️ 組み合わせ数({{ expandedFormation.length }}点)が残り口数({{ remainingUnits }}口)を超えています。
+            </div>
+            
+            <div v-else class="formation-distribution">
+              <div class="distribution-header">
+                <span>合計: {{ formationTotalUnits }}口</span>
+                <button @click="resetFormationUnits" class="btn btn-secondary btn-sm">均等分配にリセット</button>
+              </div>
+              
+              <div class="formation-items">
+                <div 
+                  v-for="(combo, index) in expandedFormation" 
+                  :key="combo.key"
+                  class="formation-item"
+                >
+                  <div class="formation-item-horses">
+                    <span class="formation-horse first">{{ combo.horses[0] }}</span>
+                    <span class="formation-arrow">→</span>
+                    <span class="formation-horse second">{{ combo.horses[1] }}</span>
+                    <span class="formation-arrow">→</span>
+                    <span class="formation-horse third">{{ combo.horses[2] }}</span>
+                  </div>
+                  <div class="formation-item-slider">
+                    <input 
+                      type="range" 
+                      :min="0" 
+                      :max="Math.min(remainingUnits, 20)"
+                      :value="formationUnits[combo.key] || 0"
+                      @input="updateFormationUnit(combo.key, Number(($event.target as HTMLInputElement).value))"
+                      class="slider"
+                    >
+                    <input 
+                      type="number" 
+                      :value="formationUnits[combo.key] || 0"
+                      @change="updateFormationUnit(combo.key, Number(($event.target as HTMLInputElement).value))"
+                      class="form-input formation-unit-input"
+                      min="0"
+                      :max="remainingUnits"
+                    >
+                    <span class="formation-unit-label">口</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- フォーメーションをカートに追加 -->
+          <div class="section" v-if="expandedFormation.length > 0 && formationTotalUnits > 0 && formationTotalUnits <= remainingUnits">
+            <button @click="addFormationToCart" class="btn btn-primary btn-block">
+              🛒 フォーメーションをカートに追加 ({{ formationTotalUnits }}口)
+            </button>
+          </div>
+        </template>
 
         <!-- カート -->
         <div class="section" v-if="cart.length > 0">
@@ -178,6 +320,18 @@ const selectedHorses = ref<number[]>([])
 const units = ref(1)
 const cart = ref<CartItem[]>([])
 const isSubmitting = ref(false)
+
+// フォーメーションモード用の状態
+const purchaseMode = ref<'normal' | 'formation'>('normal')
+const formationFirst = ref<number[]>([])
+const formationSecond = ref<number[]>([])
+const formationThird = ref<number[]>([])
+const formationUnits = ref<Record<string, number>>({})
+
+interface FormationCombo {
+  key: string
+  horses: number[]
+}
 
 const totalUnits = 100
 
@@ -293,6 +447,101 @@ async function submitBets() {
 watch(selectedType, () => {
   selectedHorses.value = []
 })
+
+// ========== フォーメーションモード用の機能 ==========
+
+// フォーメーションの展開結果
+const expandedFormation = computed<FormationCombo[]>(() => {
+  if (formationFirst.value.length === 0 || formationSecond.value.length === 0 || formationThird.value.length === 0) {
+    return []
+  }
+  
+  const results: FormationCombo[] = []
+  for (const f of formationFirst.value) {
+    for (const s of formationSecond.value) {
+      if (s === f) continue  // 同じ馬は除外
+      for (const t of formationThird.value) {
+        if (t === f || t === s) continue  // 同じ馬は除外
+        results.push({
+          key: `${f}-${s}-${t}`,
+          horses: [f, s, t]
+        })
+      }
+    }
+  }
+  return results
+})
+
+// フォーメーションの合計口数
+const formationTotalUnits = computed(() => {
+  return Object.values(formationUnits.value).reduce((sum, u) => sum + u, 0)
+})
+
+// フォーメーションの馬を選択/解除
+function toggleFormationHorse(position: 'first' | 'second' | 'third', number: number) {
+  const targetRef = position === 'first' ? formationFirst : position === 'second' ? formationSecond : formationThird
+  const index = targetRef.value.indexOf(number)
+  if (index >= 0) {
+    targetRef.value.splice(index, 1)
+  } else {
+    targetRef.value.push(number)
+  }
+  // 展開が変わったら口数をリセット
+  resetFormationUnits()
+}
+
+// フォーメーションの口数を均等分配にリセット
+function resetFormationUnits() {
+  const combos = expandedFormation.value
+  if (combos.length === 0) {
+    formationUnits.value = {}
+    return
+  }
+  
+  const maxUnits = Math.min(remainingUnits.value, totalUnits)
+  const baseUnits = Math.floor(maxUnits / combos.length)
+  const remainder = maxUnits % combos.length
+  
+  const newUnits: Record<string, number> = {}
+  combos.forEach((combo, index) => {
+    // 余りは先頭から分配
+    newUnits[combo.key] = baseUnits + (index < remainder ? 1 : 0)
+  })
+  formationUnits.value = newUnits
+}
+
+// 個別の口数を更新
+function updateFormationUnit(key: string, value: number) {
+  const safeValue = Math.max(0, Math.min(value, remainingUnits.value))
+  formationUnits.value = {
+    ...formationUnits.value,
+    [key]: safeValue
+  }
+}
+
+// フォーメーションをカートに追加
+function addFormationToCart() {
+  const combos = expandedFormation.value
+  if (combos.length === 0) return
+  
+  // 口数が1以上の組み合わせだけカートに追加
+  for (const combo of combos) {
+    const units = formationUnits.value[combo.key] || 0
+    if (units > 0) {
+      cart.value.push({
+        type: 'trifecta',
+        horses: [...combo.horses],
+        units: units
+      })
+    }
+  }
+  
+  // フォーメーションをリセット
+  formationFirst.value = []
+  formationSecond.value = []
+  formationThird.value = []
+  formationUnits.value = {}
+}
 </script>
 
 <style scoped>
@@ -559,5 +808,179 @@ watch(selectedType, () => {
 .cart-total-amount {
   font-size: var(--font-size-xl);
   color: var(--color-accent);
+}
+
+/* モード切替タブ */
+.mode-tabs {
+  display: flex;
+  gap: var(--spacing-2);
+  margin-bottom: var(--spacing-4);
+}
+
+.mode-tab {
+  flex: 1;
+  padding: var(--spacing-3) var(--spacing-4);
+  background: var(--color-bg-elevated);
+  border: 2px solid transparent;
+  border-radius: var(--border-radius-md);
+  cursor: pointer;
+  font-weight: 600;
+  transition: all var(--transition-fast);
+}
+
+.mode-tab:hover {
+  border-color: var(--color-accent);
+}
+
+.mode-tab.active {
+  border-color: var(--color-accent);
+  background: rgba(212, 175, 55, 0.15);
+  color: var(--color-accent);
+}
+
+/* フォーメーション */
+.formation-desc {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  margin: 0;
+}
+
+.formation-position {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+
+.formation-position.first::before {
+  content: '🥇';
+}
+
+.formation-position.second::before {
+  content: '🥈';
+}
+
+.formation-position.third::before {
+  content: '🥉';
+}
+
+.formation-distribution {
+  background: var(--color-bg-elevated);
+  border-radius: var(--border-radius-md);
+  padding: var(--spacing-4);
+}
+
+.distribution-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-4);
+  padding-bottom: var(--spacing-3);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  font-weight: 600;
+}
+
+.formation-items {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.formation-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-4);
+  padding: var(--spacing-2);
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: var(--border-radius-sm);
+}
+
+.formation-item-horses {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-1);
+  min-width: 100px;
+  font-weight: 600;
+}
+
+.formation-horse {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--border-radius-sm);
+  font-size: var(--font-size-sm);
+}
+
+.formation-horse.first {
+  background: #ffd700;
+  color: #000;
+}
+
+.formation-horse.second {
+  background: #c0c0c0;
+  color: #000;
+}
+
+.formation-horse.third {
+  background: #cd7f32;
+  color: #000;
+}
+
+.formation-arrow {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.formation-item-slider {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+
+.slider {
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.1);
+  appearance: none;
+  cursor: pointer;
+}
+
+.slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  background: var(--color-accent);
+  border-radius: 50%;
+  cursor: grab;
+}
+
+.slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  background: var(--color-accent);
+  border-radius: 50%;
+  border: none;
+  cursor: grab;
+}
+
+.formation-unit-input {
+  width: 60px;
+  text-align: center;
+  padding: var(--spacing-1) var(--spacing-2);
+}
+
+.formation-unit-label {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.btn-sm {
+  padding: var(--spacing-1) var(--spacing-3);
+  font-size: var(--font-size-sm);
 }
 </style>
